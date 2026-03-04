@@ -38,7 +38,7 @@ regd_users.post("/login", (req, res) => {
   req.session.authorization = { token };
 
   return res.status(200).json({
-    message: `User ${username} logged in successfully.`,
+    message: "Customer successfully logged in",
     token,
   });
 });
@@ -94,8 +94,7 @@ regd_users.delete("/auth/review/:isbn", (req, res) => {
   delete books[isbn].reviews[username];
 
   return res.status(200).json({
-    message: `Review for ISBN ${isbn} deleted by ${username}.`,
-    reviews: books[isbn].reviews,
+    message: `Review for ISBN ${isbn} deleted`,
   });
 });
 
