@@ -1,90 +1,86 @@
-/**
- * general.js
- * Node.js client demonstrating Async/Await and Promises with Axios
- * for the Book Review REST API (Task 10)
- *
- * Covers:
- *  1. Get all books          — async/await
- *  2. Search by ISBN         — Promise
- *  3. Search by Author       — async/await
- *  4. Search by Title        — async/await
- */
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const books = require("./booksdb.js");
+const { isValid, users } = require("./auth_users.js");
 
-const axios = require("axios");
+const public_users = express.Router();
 
-const BASE_URL = "http://localhost:5000";
+// POST /register — Register a new user
+public_users.post("/register", (req, res) => {
+  const { username, password } = req.body;
 
-// ─────────────────────────────────────────────
-// Task 1: Get ALL books — Using async/await
-// ─────────────────────────────────────────────
-const getAllBooks = async () => {
-  try {
-    const response = await axios.get(`${BASE_URL}/`);
-    console.log("\n📚 Task 1 — All Books (async/await):");
-    console.log(JSON.stringify(response.data, null, 2));
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching all books:", error.message);
+  if (!username || !password) {
+    return res.status(400).json({ message: "Username and password are required." });
   }
-};
+  if (isValid(username)) {
+    return res.status(409).json({ message: `User '${username}' already exists.` });
+  }
 
-// ─────────────────────────────────────────────
-// Task 2: Search by ISBN — Using Promise
-// ─────────────────────────────────────────────
-const getBookByISBN = (isbn) => {
-  return new Promise((resolve, reject) => {
-    axios
-      .get(`${BASE_URL}/isbn/${isbn}`)
-      .then((response) => {
-        console.log(`\n🔍 Task 2 — Book by ISBN ${isbn} (Promise):`);
-        console.log(JSON.stringify(response.data, null, 2));
-        resolve(response.data);
-      })
-      .catch((error) => {
-        console.error(`Error fetching book by ISBN ${isbn}:`, error.message);
-        reject(error);
-      });
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  users.push({ username, password: hashedPassword });
+
+  return res.status(201).json({ message: "User successfully registered. Now you can login" });
+});
+
+// GET / — Get all books
+public_users.get("/", (req, res) => {
+  return res.status(200).json(books);
+});
+
+// GET /isbn/:isbn — Get book by ISBN
+public_users.get("/isbn/:isbn", (req, res) => {
+  const isbn = req.params.isbn;
+  const book = books[isbn];
+
+  if (!book) {
+    return res.status(404).json({ message: `No book found with ISBN: ${isbn}` });
+  }
+  return res.status(200).json(book);
+});
+
+// GET /author/:author — Get all books by author
+public_users.get("/author/:author", (req, res) => {
+  const authorParam = req.params.author.toLowerCase();
+  const result = {};
+
+  Object.keys(books).forEach((isbn) => {
+    if (books[isbn].author.toLowerCase().includes(authorParam)) {
+      result[isbn] = books[isbn];
+    }
   });
-};
 
-// ─────────────────────────────────────────────
-// Task 3: Search by Author — Using async/await
-// ─────────────────────────────────────────────
-const getBooksByAuthor = async (author) => {
-  try {
-    const response = await axios.get(`${BASE_URL}/author/${encodeURIComponent(author)}`);
-    console.log(`\n✍️  Task 3 — Books by Author "${author}" (async/await):`);
-    console.log(JSON.stringify(response.data, null, 2));
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching books by author "${author}":`, error.message);
+  if (Object.keys(result).length === 0) {
+    return res.status(404).json({ message: `No books found by author: ${req.params.author}` });
   }
-};
+  return res.status(200).json(result);
+});
 
-// ─────────────────────────────────────────────
-// Task 4: Search by Title — Using async/await
-// ─────────────────────────────────────────────
-const getBooksByTitle = async (title) => {
-  try {
-    const response = await axios.get(`${BASE_URL}/title/${encodeURIComponent(title)}`);
-    console.log(`\n📖 Task 4 — Books by Title "${title}" (async/await):`);
-    console.log(JSON.stringify(response.data, null, 2));
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching books by title "${title}":`, error.message);
+// GET /title/:title — Get all books by title
+public_users.get("/title/:title", (req, res) => {
+  const titleParam = req.params.title.toLowerCase();
+  const result = {};
+
+  Object.keys(books).forEach((isbn) => {
+    if (books[isbn].title.toLowerCase().includes(titleParam)) {
+      result[isbn] = books[isbn];
+    }
+  });
+
+  if (Object.keys(result).length === 0) {
+    return res.status(404).json({ message: `No books found with title: ${req.params.title}` });
   }
-};
+  return res.status(200).json(result);
+});
 
-// ─────────────────────────────────────────────
-// Run all methods sequentially
-// ─────────────────────────────────────────────
-const runAll = async () => {
-  await getAllBooks();
-  await getBookByISBN(1);
-  await getBooksByAuthor("Austen");
-  await getBooksByTitle("Pride");
-};
+// GET /review/:isbn — Get reviews for a book
+public_users.get("/review/:isbn", (req, res) => {
+  const isbn = req.params.isbn;
+  const book = books[isbn];
 
-runAll();
+  if (!book) {
+    return res.status(404).json({ message: `No book found with ISBN: ${isbn}` });
+  }
+  return res.status(200).json({ reviews: book.reviews });
+});
 
-module.exports = { getAllBooks, getBookByISBN, getBooksByAuthor, getBooksByTitle };
+module.exports.general = public_users;
