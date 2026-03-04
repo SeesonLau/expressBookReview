@@ -19,7 +19,7 @@ public_users.post("/register", (req, res) => {
   const hashedPassword = bcrypt.hashSync(password, 10);
   users.push({ username, password: hashedPassword });
 
-  return res.status(201).json({ message: `User '${username}' registered successfully.` });
+  return res.status(201).json({ message: "User successfully registered. Now you can login" });
 });
 
 // GET / — Get all books
